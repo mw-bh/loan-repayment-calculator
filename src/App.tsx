@@ -1,19 +1,93 @@
+import { useState, type ChangeEvent } from 'react';
+import { Card, FormField, Layout, Stat, StatGrid } from './components';
+import { formatCurrency } from './utils/format';
+import { calculateLoanSummary } from './utils/loan';
+import {
+  validateLoanForm,
+  type LoanFormField,
+  type LoanFormValues,
+} from './utils/validation';
+
+const initialValues: LoanFormValues = { amount: '', rate: '', term: '' };
+const untouched: Record<LoanFormField, boolean> = {
+  amount: false,
+  rate: false,
+  term: false,
+};
+
 export default function App() {
-  // 👋 Start here. Build the loan repayment calculator described in the README.
-  //
-  // Three parts:
-  //   1. A form (loan amount, annual interest rate, term in years) that computes
-  //      the monthly repayment, total repaid, and total interest.
-  //   2. An amortisation schedule table.
-  //   3. A currency toggle backed by the Frankfurter API.
-  //
-  // Structure it however you see fit — this file is just a starting point.
+  const [values, setValues] = useState(initialValues);
+  // Errors only show once a field has been left, so users aren't told off mid-typing.
+  const [touched, setTouched] = useState(untouched);
+
+  // Derived on every render rather than stored: cheap, and can never go stale.
+  const validation = validateLoanForm(values);
+  const summary = validation.ok ? calculateLoanSummary(validation.value) : null;
+
+  const fieldProps = (field: LoanFormField) => ({
+    name: field,
+    value: values[field],
+    onChange: (e: ChangeEvent<HTMLInputElement>) =>
+      setValues((v) => ({ ...v, [field]: e.target.value })),
+    onBlur: () => setTouched((t) => ({ ...t, [field]: true })),
+    error:
+      touched[field] && !validation.ok ? validation.errors[field] : undefined,
+    required: true,
+    autoComplete: 'off',
+  });
+
   return (
-    <main className="mx-auto max-w-3xl p-8">
-      <h1 className="text-2xl font-semibold">Loan Repayment Calculator</h1>
-      <p className="mt-2 text-gray-600">
-        Replace this with your implementation. See the README for the full brief.
-      </p>
-    </main>
+    <Layout title="Loan Repayment Calculator">
+      <Card title="Loan details">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <FormField
+            label="Loan amount"
+            prefix="£"
+            inputMode="decimal"
+            placeholder="200,000"
+            hint="Required, must be positive"
+            {...fieldProps('amount')}
+          />
+          <FormField
+            label="Annual interest rate"
+            suffix="%"
+            inputMode="decimal"
+            placeholder="5.5"
+            hint="Required, 0–100"
+            {...fieldProps('rate')}
+          />
+          <FormField
+            label="Loan term (years)"
+            inputMode="numeric"
+            placeholder="25"
+            hint="Required, whole number 1–30"
+            {...fieldProps('term')}
+          />
+        </div>
+      </Card>
+
+      <Card title="Summary">
+        {summary ? (
+          <StatGrid>
+            <Stat
+              label="Monthly repayment"
+              value={formatCurrency(summary.monthlyPayment)}
+            />
+            <Stat
+              label="Total repaid"
+              value={formatCurrency(summary.totalRepaid)}
+            />
+            <Stat
+              label="Total interest"
+              value={formatCurrency(summary.totalInterest)}
+            />
+          </StatGrid>
+        ) : (
+          <p className="text-sm text-gray-500">
+            Enter your loan details to see your repayments.
+          </p>
+        )}
+      </Card>
+    </Layout>
   );
 }

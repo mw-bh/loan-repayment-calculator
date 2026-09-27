@@ -31,11 +31,11 @@ schedule, and a live currency toggle.
 
 Build a form with three fields:
 
-| Field | Type | Constraints |
-|---|---|---|
-| Loan amount | Number (GBP) | Required, positive |
-| Annual interest rate | Percentage | Required, 0–100 |
-| Loan term | Years | Required, integer, 1–30 |
+| Field                | Type         | Constraints             |
+| -------------------- | ------------ | ----------------------- |
+| Loan amount          | Number (GBP) | Required, positive      |
+| Annual interest rate | Percentage   | Required, 0–100         |
+| Loan term            | Years        | Required, integer, 1–30 |
 
 On submission (or on change — your choice), compute and display:
 
@@ -61,14 +61,14 @@ covers the interest accrued on the remaining balance, with the rest reducing the
 Below the summary figures, render a table showing how the loan is paid off month by month.
 Each row should show:
 
-| Column | Description |
-|---|---|
-| Month | Payment number (1, 2, 3 …) |
+| Column          | Description                       |
+| --------------- | --------------------------------- |
+| Month           | Payment number (1, 2, 3 …)        |
 | Opening balance | Balance at the start of the month |
-| Monthly payment | Fixed payment amount |
-| Interest | Interest portion of this payment |
-| Principal | Principal portion of this payment |
-| Closing balance | Balance after this payment |
+| Monthly payment | Fixed payment amount              |
+| Interest        | Interest portion of this payment  |
+| Principal       | Principal portion of this payment |
+| Closing balance | Balance after this payment        |
 
 All amounts should be formatted as GBP using `Intl.NumberFormat` with `style: 'currency'`
 and `currency: 'GBP'`.
@@ -81,6 +81,7 @@ users view all amounts in a different currency. No API key is required.
 **Endpoint:** `GET https://api.frankfurter.dev/v1/latest?from=GBP`
 
 **Example response:**
+
 ```json
 {
   "amount": 1,
@@ -118,4 +119,4 @@ the correct currency code.
 A GitHub repo (public or shared with us) is ideal. A short README covering your approach
 and any tradeoffs is very welcome — it often starts the best conversations.
 
-*We'll use this as a starting point for a conversation, not a checklist.*
+_We'll use this as a starting point for a conversation, not a checklist._
