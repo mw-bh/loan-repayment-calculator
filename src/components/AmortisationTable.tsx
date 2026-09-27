@@ -1,10 +1,15 @@
 import { memo } from 'react';
-import type { ScheduleRow } from '../utils/loan';
+import type { Currency } from '../utils/exchangeRates';
 import { formatCurrency } from '../utils/format';
+import type { ScheduleRow } from '../utils/loan';
 import { Table, TableContainer, Td, Th, Tr } from './Table';
 
 interface AmortisationTableProps {
+  /** Always in GBP; converted for display only. */
   schedule: ScheduleRow[];
+  currency: Currency;
+  /** Units of `currency` per 1 GBP. */
+  rate: number;
 }
 
 /**
@@ -14,7 +19,11 @@ interface AmortisationTableProps {
  */
 export const AmortisationTable = memo(function AmortisationTable({
   schedule,
+  currency,
+  rate,
 }: AmortisationTableProps) {
+  const money = (gbp: number) => formatCurrency(gbp * rate, currency);
+
   return (
     <TableContainer label="Schedule table, scrollable">
       <Table caption={`Repayment schedule over ${schedule.length} months`}>
@@ -32,11 +41,11 @@ export const AmortisationTable = memo(function AmortisationTable({
           {schedule.map((row) => (
             <Tr key={row.month}>
               <Td>{row.month}</Td>
-              <Td align="right">{formatCurrency(row.openingBalance)}</Td>
-              <Td align="right">{formatCurrency(row.payment)}</Td>
-              <Td align="right">{formatCurrency(row.interest)}</Td>
-              <Td align="right">{formatCurrency(row.principal)}</Td>
-              <Td align="right">{formatCurrency(row.closingBalance)}</Td>
+              <Td align="right">{money(row.openingBalance)}</Td>
+              <Td align="right">{money(row.payment)}</Td>
+              <Td align="right">{money(row.interest)}</Td>
+              <Td align="right">{money(row.principal)}</Td>
+              <Td align="right">{money(row.closingBalance)}</Td>
             </Tr>
           ))}
         </tbody>

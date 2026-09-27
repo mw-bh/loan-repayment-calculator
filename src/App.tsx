@@ -1,13 +1,21 @@
 import { useMemo, useState, type ChangeEvent } from 'react';
 import {
+  Alert,
   AmortisationTable,
   Card,
   FormField,
   Layout,
+  Select,
   Stat,
   StatGrid,
 } from './components';
-import { formatCurrency } from './utils/format';
+import { useExchangeRates } from './hooks/useExchangeRates';
+import {
+  BASE_CURRENCY,
+  CURRENCIES,
+  type Currency,
+} from './utils/exchangeRates';
+import { formatCurrency, formatIsoDate } from './utils/format';
 import { buildAmortisationSchedule, summariseSchedule } from './utils/loan';
 import {
   validateLoanForm,
@@ -26,11 +34,14 @@ export default function App() {
   const [values, setValues] = useState(initialValues);
   // Errors only show once a field has been left, so users aren't told off mid-typing.
   const [touched, setTouched] = useState(untouched);
+  const [selectedCurrency, setSelectedCurrency] =
+    useState<Currency>(BASE_CURRENCY);
+  const { state: ratesState, retry: retryRates } = useExchangeRates();
 
   // Derived from `values` rather than stored, so it can never go stale.
   // Memoised on `values` so the schedule keeps the same identity across
-  // renders that don't change the inputs (e.g. blur), letting the memoised
-  // table skip re-rendering 360 rows.
+  // renders that don't change the inputs (e.g. blur or a currency change),
+  // letting the memoised table skip rebuilding.
   const { validation, schedule } = useMemo(() => {
     const result = validateLoanForm(values);
     return {
@@ -39,6 +50,13 @@ export default function App() {
     };
   }, [values]);
   const summary = schedule ? summariseSchedule(schedule) : null;
+
+  // Everything is calculated in GBP; conversion happens only at display time.
+  // Without live rates we fall back to GBP so the calculator keeps working.
+  const ratesReady = ratesState.status === 'success';
+  const currency = ratesReady ? selectedCurrency : BASE_CURRENCY;
+  const rate = ratesReady ? ratesState.data.rates[currency] : 1;
+  const money = (gbp: number) => formatCurrency(gbp * rate, currency);
 
   const fieldProps = (field: LoanFormField) => ({
     name: field,
@@ -51,6 +69,32 @@ export default function App() {
     required: true,
     autoComplete: 'off',
   });
+
+  const currencyControls = (
+    <div className="flex flex-wrap items-center gap-3">
+      <Select
+        label="Currency"
+        value={currency}
+        onChange={(e) => setSelectedCurrency(e.target.value as Currency)}
+      >
+        {CURRENCIES.map((code) => (
+          <option
+            key={code}
+            value={code}
+            // Only GBP is usable until live rates arrive.
+            disabled={code !== BASE_CURRENCY && !ratesReady}
+          >
+            {code}
+          </option>
+        ))}
+      </Select>
+      <span className="text-xs text-gray-500">
+        {ratesState.status === 'loading' && 'Loading exchange rates…'}
+        {ratesState.status === 'success' &&
+          `Rates: ${formatIsoDate(ratesState.data.date)}`}
+      </span>
+    </div>
+  );
 
   return (
     <Layout title="Loan Repayment Calculator">
@@ -82,27 +126,29 @@ export default function App() {
         </div>
       </Card>
 
-      <Card title="Summary">
+      <Card title="Summary" actions={currencyControls}>
         {summary ? (
           <>
             <StatGrid>
               <Stat
                 label="Monthly repayment"
-                value={formatCurrency(summary.monthlyPayment)}
+                value={money(summary.monthlyPayment)}
               />
-              <Stat
-                label="Total repaid"
-                value={formatCurrency(summary.totalRepaid)}
-              />
+              <Stat label="Total repaid" value={money(summary.totalRepaid)} />
               <Stat
                 label="Total interest"
-                value={formatCurrency(summary.totalInterest)}
+                value={money(summary.totalInterest)}
               />
             </StatGrid>
             {summary.finalPayment !== summary.monthlyPayment && (
               <p className="mt-3 text-xs text-gray-500">
-                Final payment of {formatCurrency(summary.finalPayment)} settles
-                the pence left over from rounding each payment.
+                Final payment of {money(summary.finalPayment)} settles the pence
+                left over from rounding each payment.
+              </p>
+            )}
+            {currency !== BASE_CURRENCY && (
+              <p className="mt-1 text-xs text-gray-500">
+                Converted from GBP at 1 GBP = {rate} {currency}.
               </p>
             )}
           </>
@@ -111,11 +157,35 @@ export default function App() {
             Enter your loan details to see your repayments.
           </p>
         )}
+        {/* Announces currency changes to screen readers; visually hidden. */}
+        <p role="status" className="sr-only">
+          {`Amounts shown in ${currency}`}
+        </p>
       </Card>
+
+      {/* Always mounted so screen readers announce the message when it appears. */}
+      <Alert tone="warning">
+        {ratesState.status === 'error' && (
+          <>
+            Live exchange rates unavailable — showing amounts in GBP.{' '}
+            <button
+              type="button"
+              onClick={retryRates}
+              className="font-medium underline hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2"
+            >
+              Try again
+            </button>
+          </>
+        )}
+      </Alert>
 
       <Card title="Amortisation schedule">
         {schedule ? (
-          <AmortisationTable schedule={schedule} />
+          <AmortisationTable
+            schedule={schedule}
+            currency={currency}
+            rate={rate}
+          />
         ) : (
           <p className="text-sm text-gray-500">
             Your month-by-month schedule will appear here.
