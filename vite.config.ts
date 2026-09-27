@@ -1,13 +1,15 @@
 /// <reference types="vitest/config" />
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import tailwindcss from "@tailwindcss/vite";
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   test: {
-    environment: "jsdom",
+    environment: 'jsdom',
     globals: true,
-    setupFiles: "./src/test-setup.ts",
+    setupFiles: './src/test-setup.ts',
+    // Unit/component tests only; Playwright owns e2e/.
+    include: ['src/**/*.test.{ts,tsx}'],
   },
 });
