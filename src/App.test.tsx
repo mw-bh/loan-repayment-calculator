@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, test } from 'vitest';
 import App from './App';
@@ -21,9 +21,28 @@ test('shows the repayment summary once all fields are valid', async () => {
   await user.type(screen.getByLabelText(/annual interest rate/i), '5.5');
   await user.type(screen.getByLabelText(/loan term/i), '25');
 
-  expect(screen.getByText('£1,228.17')).toBeInTheDocument();
-  expect(screen.getByText('£368,452.50')).toBeInTheDocument();
-  expect(screen.getByText('£168,452.50')).toBeInTheDocument();
+  const summary = screen.getByRole('region', { name: 'Summary' });
+  expect(within(summary).getByText('£1,228.17')).toBeInTheDocument();
+  expect(within(summary).getByText('£368,454.14')).toBeInTheDocument();
+  expect(within(summary).getByText('£168,454.14')).toBeInTheDocument();
+});
+
+test('shows a full schedule that ends at £0.00', async () => {
+  const user = userEvent.setup();
+  render(<App />);
+
+  await user.type(screen.getByLabelText(/loan amount/i), '200000');
+  await user.type(screen.getByLabelText(/annual interest rate/i), '5.5');
+  await user.type(screen.getByLabelText(/loan term/i), '25');
+
+  const table = screen.getByRole('table', {
+    name: 'Repayment schedule over 300 months',
+  });
+  const [, ...bodyRows] = within(table).getAllByRole('row');
+  expect(bodyRows).toHaveLength(300);
+  expect(within(bodyRows[299]).getAllByRole('cell').at(-1)).toHaveTextContent(
+    '£0.00',
+  );
 });
 
 test('does not show an error while the user is still typing', async () => {

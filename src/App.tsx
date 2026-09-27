@@ -1,7 +1,14 @@
-import { useState, type ChangeEvent } from 'react';
-import { Card, FormField, Layout, Stat, StatGrid } from './components';
+import { useMemo, useState, type ChangeEvent } from 'react';
+import {
+  AmortisationTable,
+  Card,
+  FormField,
+  Layout,
+  Stat,
+  StatGrid,
+} from './components';
 import { formatCurrency } from './utils/format';
-import { calculateLoanSummary } from './utils/loan';
+import { buildAmortisationSchedule, summariseSchedule } from './utils/loan';
 import {
   validateLoanForm,
   type LoanFormField,
@@ -20,9 +27,18 @@ export default function App() {
   // Errors only show once a field has been left, so users aren't told off mid-typing.
   const [touched, setTouched] = useState(untouched);
 
-  // Derived on every render rather than stored: cheap, and can never go stale.
-  const validation = validateLoanForm(values);
-  const summary = validation.ok ? calculateLoanSummary(validation.value) : null;
+  // Derived from `values` rather than stored, so it can never go stale.
+  // Memoised on `values` so the schedule keeps the same identity across
+  // renders that don't change the inputs (e.g. blur), letting the memoised
+  // table skip re-rendering 360 rows.
+  const { validation, schedule } = useMemo(() => {
+    const result = validateLoanForm(values);
+    return {
+      validation: result,
+      schedule: result.ok ? buildAmortisationSchedule(result.value) : null,
+    };
+  }, [values]);
+  const summary = schedule ? summariseSchedule(schedule) : null;
 
   const fieldProps = (field: LoanFormField) => ({
     name: field,
@@ -68,23 +84,41 @@ export default function App() {
 
       <Card title="Summary">
         {summary ? (
-          <StatGrid>
-            <Stat
-              label="Monthly repayment"
-              value={formatCurrency(summary.monthlyPayment)}
-            />
-            <Stat
-              label="Total repaid"
-              value={formatCurrency(summary.totalRepaid)}
-            />
-            <Stat
-              label="Total interest"
-              value={formatCurrency(summary.totalInterest)}
-            />
-          </StatGrid>
+          <>
+            <StatGrid>
+              <Stat
+                label="Monthly repayment"
+                value={formatCurrency(summary.monthlyPayment)}
+              />
+              <Stat
+                label="Total repaid"
+                value={formatCurrency(summary.totalRepaid)}
+              />
+              <Stat
+                label="Total interest"
+                value={formatCurrency(summary.totalInterest)}
+              />
+            </StatGrid>
+            {summary.finalPayment !== summary.monthlyPayment && (
+              <p className="mt-3 text-xs text-gray-500">
+                Final payment of {formatCurrency(summary.finalPayment)} settles
+                the pence left over from rounding each payment.
+              </p>
+            )}
+          </>
         ) : (
           <p className="text-sm text-gray-500">
             Enter your loan details to see your repayments.
+          </p>
+        )}
+      </Card>
+
+      <Card title="Amortisation schedule">
+        {schedule ? (
+          <AmortisationTable schedule={schedule} />
+        ) : (
+          <p className="text-sm text-gray-500">
+            Your month-by-month schedule will appear here.
           </p>
         )}
       </Card>
